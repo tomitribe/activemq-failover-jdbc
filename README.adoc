@@ -8,3 +8,68 @@ Both servers are configured to use a JDBC persistence adapter and we will be usi
 
 To make it easier to test and run locally, this is built on Docker.
 
+== Prerequisites
+
+This example is built using Docker, so you need Docker properly installed on your computer.
+You also need a SQL client if you want to connect to the MariaDB SQL Server and check the tables.
+
+== Architecture
+
+The setup is composed of 3 instances
+
+* First ActiveMQ broker named `paris`
+* Second ActiveMQ broker named `london`
+* A MariaDB SQL server
+
+== Running the example
+
+For simplicity, this repository is selfcontained.
+The only thing to do is use the docker-compose.yaml to start everything: `docker-compose up`
+
+One of the 2 brokers will acquire the lock in the database and proceed with the startup.
+The second broker should stop because it won't be able to acquire the lock.
+
+Let's assume Paris is the first ActiveMQ broker able to acquire the lock, you will see the following logs
+
+````
+activemq-failover-jdbc-activemq-paris-1   |  INFO | paris attempting to acquire exclusive lease to become the master
+activemq-failover-jdbc-activemq-paris-1   |  INFO | paris, becoming master with lease expiry Fri Apr 29 08:31:12 GMT 2022 on dataSource: org.apache.commons.dbcp2.BasicDataSource@14fc5f04
+````
+
+For London, you should see that the broker stays stuck with the following
+
+````
+activemq-failover-jdbc-activemq-london-1  |  INFO | london attempting to acquire exclusive lease to become the master
+````
+
+It will remain in this state forever until Paris goes down. Let's try it ....
+
+Run the following command to list all Docker containers `docker ps`
+
+Then, run the following to stop Paris broker if it was the one acquiring the lock first and therefor became the master `docker stop activemq-failover-jdbc-activemq-paris-1`
+
+Now, if you look at the logs again, you will see that London acquired the lock and became the new master.
+
+````
+activemq-failover-jdbc-activemq-london-1  |  INFO | london, becoming master with lease expiry Fri Apr 29 08:35:22 GMT 2022 on dataSource: org.apache.commons.dbcp2.BasicDataSource@14fc5f04
+activemq-failover-jdbc-activemq-london-1  |  INFO | PListStore:[/opt/activemq/data/london/tmp_storage] started
+activemq-failover-jdbc-activemq-london-1  |  INFO | Apache ActiveMQ 5.16.4 (london, ID:483408f6c0ad-38451-1651221312608-0:1) is starting
+activemq-failover-jdbc-activemq-london-1  |  INFO | Listening for connections at: tcp://483408f6c0ad:61616?maximumConnections=1000&wireFormat.maxFrameSize=104857600
+activemq-failover-jdbc-activemq-london-1  |  INFO | Connector openwire started
+activemq-failover-jdbc-activemq-london-1  |  INFO | Listening for connections at: amqp://483408f6c0ad:5672?maximumConnections=1000&wireFormat.maxFrameSize=104857600
+activemq-failover-jdbc-activemq-london-1  |  INFO | Connector amqp started
+activemq-failover-jdbc-activemq-london-1  |  INFO | Listening for connections at: stomp://483408f6c0ad:61613?maximumConnections=1000&wireFormat.maxFrameSize=104857600
+activemq-failover-jdbc-activemq-london-1  |  INFO | Connector stomp started
+activemq-failover-jdbc-activemq-london-1  |  INFO | Listening for connections at: mqtt://483408f6c0ad:1883?maximumConnections=1000&wireFormat.maxFrameSize=104857600
+activemq-failover-jdbc-activemq-london-1  |  INFO | Connector mqtt started
+activemq-failover-jdbc-activemq-london-1  |  INFO | Starting Jetty server
+activemq-failover-jdbc-activemq-london-1  |  INFO | Creating Jetty connector
+activemq-failover-jdbc-activemq-london-1  |  WARN | ServletContext@o.e.j.s.ServletContextHandler@3bcbb589{/,null,STARTING} has uncovered http methods for path: /
+activemq-failover-jdbc-activemq-london-1  |  INFO | Listening for connections at ws://483408f6c0ad:61614?maximumConnections=1000&wireFormat.maxFrameSize=104857600
+activemq-failover-jdbc-activemq-london-1  |  INFO | Connector ws started
+activemq-failover-jdbc-activemq-london-1  |  INFO | Apache ActiveMQ 5.16.4 (london, ID:483408f6c0ad-38451-1651221312608-0:1) started
+activemq-failover-jdbc-activemq-london-1  |  INFO | For help or more information please see: http://activemq.apache.org
+activemq-failover-jdbc-activemq-london-1  |  WARN | Store limit is 102400 mb (current store usage is 0 mb). The data directory: /opt/activemq/data only has 52793 mb of usable space. - resetting to maximum available disk space: 52793 mb
+activemq-failover-jdbc-activemq-london-1  |  INFO | ActiveMQ WebConsole available at http://127.0.0.1:8161/
+activemq-failover-jdbc-activemq-london-1  |  INFO | ActiveMQ Jolokia REST API available at http://127.0.0.1:8161/api/jolokia/
+````
