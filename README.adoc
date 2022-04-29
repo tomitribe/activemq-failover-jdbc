@@ -1,0 +1,10 @@
+= Apache ActiveMQ Failover example
+
+This example shows how to set up 2 Apache ActiveMQ message brokers in a failover maner. 
+At this moment, there is only one master and one slave. 
+One of them will start and become the master, the other one will wait till mthe master goes down so it can be promoted to master.
+
+Both servers are configured to use a JDBC persistence adapter and we will be using a MariaDB SQL database.
+
+To make it easier to test and run locally, this is built on Docker.
+

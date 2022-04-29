@@ -1,0 +1,39 @@
+version: '3.3'
+services:
+  activemq-paris:
+    build: ./activemq-5.16
+    depends_on:
+     - "mariadb"
+    ports:
+     - "61617:61616"
+     - "5673:5672"
+     - "8162:8161"
+    secrets:
+     - source: config-b1
+       target: /opt/activemq/conf/activemq.xml
+  activemq-london:
+    build: ./activemq-5.16
+    depends_on:
+     - activemq-paris
+    ports:
+     - "61618:61616"
+     - "5674:5672"
+     - "8163:8161"
+    secrets:
+     - source: config-b2
+       target: /opt/activemq/conf/activemq.xml
+  mariadb:
+    build: ./mariadb
+    environment:
+      TZ: Europe/Paris
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_USER: activemq
+      MARIADB_PASSWORD: activemq
+      MARIADB_DATABASE: activemq
+    ports:
+     - "3306"
+secrets:
+  config-b1:
+    file: ./activemq-paris.xml
+  config-b2:
+    file: ./activemq-london.xml
